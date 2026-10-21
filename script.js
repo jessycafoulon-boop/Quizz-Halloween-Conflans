@@ -1,4 +1,10 @@
-// Personnalise les textes et les réponses dans ce tableau.
+
+/* =========================================================
+   QUIZ : LES COULISSES DE LA MAIRIE DE CONFLANS
+   Questions, score, résultats et musique YouTube
+========================================================= */
+
+// PERSONNALISE LES QUESTIONS ET LES RÉPONSES
 const questions = [
   {
     type: "LES PUBLICATIONS DE LA VILLE",
@@ -42,224 +48,532 @@ const questions = [
   }
 ];
 
-// BONUS : modifie la question et la réponse lorsque le surnom officiel de la ville est confirmé.
+// QUESTION BONUS
 const bonus = {
   type: "QUESTION BONUS — LE SECRET DE CONFLANS",
   text: "Sous quel surnom notre ville est-elle connue ?",
   hint: "Une dernière énigme pour les enquêteurs les plus attentifs.",
-  answers: ["Réponse à personnaliser", "Autre proposition", "Autre proposition"],
+  answers: [
+    "Réponse à personnaliser",
+    "Autre proposition",
+    "Autre proposition"
+  ],
   correct: 0,
   explanation: "Pense à remplacer les propositions par les surnoms que tu souhaites faire deviner."
 };
 
-let current = 0, score = 0, selected = null, locked = false, answersLog = [];
+// =========================================================
+// VARIABLES DU QUIZ
+// =========================================================
+
+let current = 0;
+let score = 0;
+let selected = null;
+let locked = false;
+let answersLog = [];
+
 const $ = id => document.getElementById(id);
-const screens = ["videoIntro","intro","quiz","result","review"];
-function showScreen(id){ screens.forEach(s => $(s).classList.toggle("hidden", s !== id)); window.scrollTo({top:0,behavior:"smooth"}); }
-function leaveVideoIntro(){
-  const video=$("openingVideo");
-  if(video && !video.paused) video.pause();
+
+const screens = [
+  "videoIntro",
+  "intro",
+  "quiz",
+  "result",
+  "review"
+];
+
+function showScreen(id) {
+  screens.forEach(screen => {
+    const element = $(screen);
+    if (element) {
+      element.classList.toggle("hidden", screen !== id);
+    }
+  });
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// =========================================================
+// VIDÉO D'INTRODUCTION
+// =========================================================
+
+function leaveVideoIntro() {
+  const video = $("openingVideo");
+
+  if (video && !video.paused) {
+    video.pause();
+  }
+
   showScreen("intro");
 }
-function startOpeningVideo(){
-  const video=$("openingVideo");
-  if(!video) return;
-  // L'autoplay est autorisé plus largement avec le son coupé.
-  video.muted=true;
-  const attempt=video.play();
-  if(attempt && typeof attempt.catch==="function"){
-    attempt.catch(()=> {
-      // Certains navigateurs bloquent l'autoplay : la vidéo reste visible et peut être lancée au clic.
-      const note=document.querySelector(".video-intro-label");
-      if(note) note.textContent="CLIQUE SUR LA VIDÉO POUR LANCER L’INTRODUCTION";
-      video.controls=true;
+
+function startOpeningVideo() {
+  const video = $("openingVideo");
+
+  if (!video) return;
+
+  video.muted = true;
+
+  const attempt = video.play();
+
+  if (attempt && typeof attempt.catch === "function") {
+    attempt.catch(() => {
+      const note = document.querySelector(".video-intro-label");
+
+      if (note) {
+        note.textContent =
+          "CLIQUE SUR LA VIDÉO POUR LANCER L’INTRODUCTION";
+      }
+
+      video.controls = true;
     });
   }
 }
-function begin(){ current=0;score=0;selected=null;locked=false;answersLog=[];showScreen("quiz");renderQuestion(); }
-function renderQuestion(){
-  const q = current < questions.length ? questions[current] : bonus;
+
+// =========================================================
+// DÉMARRAGE ET AFFICHAGE DU QUIZ
+// =========================================================
+
+function begin() {
+  current = 0;
+  score = 0;
+  selected = null;
+  locked = false;
+  answersLog = [];
+
+  showScreen("quiz");
+  renderQuestion();
+
+  // La musique est demandée après le clic de l'utilisateur.
+  startMissionMusic();
+}
+
+function renderQuestion() {
+  const q = current < questions.length
+    ? questions[current]
+    : bonus;
+
   const isBonus = current >= questions.length;
-  $("questionCounter").textContent = isBonus ? "QUESTION BONUS" : `ÉNIGME ${String(current+1).padStart(2,"0")} / ${String(questions.length).padStart(2,"0")}`;
-  $("scoreLabel").textContent = `${score} POINT${score>1?"S":""}`;
-  $("progressBar").style.width = `${Math.min(100, current/questions.length*100)}%`;
-  $("questionType").textContent=q.type;
-  $("questionText").textContent=q.text;
-  $("questionHint").textContent=q.hint;
-  $("answers").innerHTML="";
-  $("feedback").className="feedback hidden";$("feedback").textContent="";
-  $("nextBtn").disabled=true;$("nextBtn").innerHTML=isBonus?'Découvrir mon résultat <span>→</span>':'Valider l’indice <span>→</span>';
-  $("answerNote").textContent="Choisis une réponse pour continuer.";
-  selected=null;locked=false;
-  q.answers.forEach((answer,i)=>{
-    const button=document.createElement("button");
-    button.className="answer-option";button.type="button";
-    button.innerHTML=`<span class="answer-key">${String.fromCharCode(65+i)}</span><span></span>`;
-    button.querySelector("span:last-child").textContent=answer;
-    button.addEventListener("click",()=>selectAnswer(i));
+
+  $("questionCounter").textContent = isBonus
+    ? "QUESTION BONUS"
+    : `ÉNIGME ${String(current + 1).padStart(2, "0")} / ${String(questions.length).padStart(2, "0")}`;
+
+  $("scoreLabel").textContent =
+    `${score} POINT${score > 1 ? "S" : ""}`;
+
+  $("progressBar").style.width =
+    `${Math.min(100, current / questions.length * 100)}%`;
+
+  $("questionType").textContent = q.type;
+  $("questionText").textContent = q.text;
+  $("questionHint").textContent = q.hint;
+
+  $("answers").innerHTML = "";
+
+  $("feedback").className = "feedback hidden";
+  $("feedback").textContent = "";
+
+  $("nextBtn").disabled = true;
+
+  $("nextBtn").innerHTML = isBonus
+    ? 'Découvrir mon résultat <span>→</span>'
+    : 'Valider l’indice <span>→</span>';
+
+  $("answerNote").textContent =
+    "Choisis une réponse pour continuer.";
+
+  selected = null;
+  locked = false;
+
+  q.answers.forEach((answer, i) => {
+    const button = document.createElement("button");
+
+    button.className = "answer-option";
+    button.type = "button";
+
+    button.innerHTML =
+      `<span class="answer-key">${String.fromCharCode(65 + i)}</span><span></span>`;
+
+    button.querySelector("span:last-child").textContent = answer;
+
+    button.addEventListener("click", () => selectAnswer(i));
+
     $("answers").appendChild(button);
   });
 }
-function selectAnswer(i){
-  if(locked)return;selected=i;
-  [...$("answers").children].forEach((b,n)=>b.classList.toggle("selected",n===i));
-  $("nextBtn").disabled=false;
-  $("answerNote").textContent="Indice sélectionné. Prêt à vérifier ?";
-}
-function validateAnswer(){
-  if(selected===null||locked)return;
-  locked=true;
-  const q=current<questions.length?questions[current]:bonus;
-  const isCorrect=selected===q.correct;
-  if(isCorrect)score++;
-  answersLog.push({question:q.text, chosen:q.answers[selected], correct:q.answers[q.correct], isCorrect, explanation:q.explanation});
-  [...$("answers").children].forEach((b,i)=>{
-    b.disabled=true;
-    if(i===q.correct)b.classList.add("correct");
-    else if(i===selected)b.classList.add("incorrect");
+
+function selectAnswer(i) {
+  if (locked) return;
+
+  selected = i;
+
+  [...$("answers").children].forEach((button, n) => {
+    button.classList.toggle("selected", n === i);
   });
-  $("feedback").className=`feedback ${isCorrect?"good":"bad"}`;
-  $("feedback").textContent=(isCorrect?"✦ Bien joué ! ":"✦ Pas tout à fait. ")+q.explanation;
-  $("nextBtn").innerHTML=current===questions.length?'Voir le résultat <span>→</span>':'Énigme suivante <span>→</span>';
-  $("answerNote").textContent=isCorrect?"Un indice de plus dans ton carnet.":"L’enquête continue, ne baisse pas les bras.";
-  $("scoreLabel").textContent=`${score} POINT${score>1?"S":""}`;
+
+  $("nextBtn").disabled = false;
+
+  $("answerNote").textContent =
+    "Indice sélectionné. Prêt à vérifier ?";
 }
-function nextQuestion(){
-  if(!locked){validateAnswer();return;}
+
+// =========================================================
+// VALIDATION DES RÉPONSES
+// =========================================================
+
+function validateAnswer() {
+  if (selected === null || locked) return;
+
+  locked = true;
+
+  const q = current < questions.length
+    ? questions[current]
+    : bonus;
+
+  const isCorrect = selected === q.correct;
+
+  if (isCorrect) score++;
+
+  answersLog.push({
+    question: q.text,
+    chosen: q.answers[selected],
+    correct: q.answers[q.correct],
+    isCorrect,
+    explanation: q.explanation
+  });
+
+  [...$("answers").children].forEach((button, i) => {
+    button.disabled = true;
+
+    if (i === q.correct) {
+      button.classList.add("correct");
+    } else if (i === selected) {
+      button.classList.add("incorrect");
+    }
+  });
+
+  $("feedback").className =
+    `feedback ${isCorrect ? "good" : "bad"}`;
+
+  $("feedback").textContent =
+    (isCorrect ? "✦ Bien joué ! " : "✦ Pas tout à fait. ") +
+    q.explanation;
+
+  $("nextBtn").innerHTML =
+    current === questions.length
+      ? 'Voir le résultat <span>→</span>'
+      : 'Énigme suivante <span>→</span>';
+
+  $("answerNote").textContent = isCorrect
+    ? "Un indice de plus dans ton carnet."
+    : "L’enquête continue, ne baisse pas les bras.";
+
+  $("scoreLabel").textContent =
+    `${score} POINT${score > 1 ? "S" : ""}`;
+}
+
+function nextQuestion() {
+  if (!locked) {
+    validateAnswer();
+    return;
+  }
+
   current++;
-  if(current>questions.length){showResult();return;}
+
+  if (current > questions.length) {
+    showResult();
+    return;
+  }
+
   renderQuestion();
 }
-function showResult(){
-  showScreen("result");$("progressBar").style.width="100%";
-  $("finalScore").textContent=`${score}/${questions.length+1}`;
-  const max=questions.length+1;
-  let title="Le mystère reste entier…",message="Les archives ont encore quelques secrets.";
-  if(score===max){title="Une enquête sans faute !";message="Tous les indices ont été déchiffrés. La mairie n’a plus de secrets pour toi.";}
-  else if(score>=Math.ceil(max*.7)){title="Bien joué, enquêteur·rice !";message="Tu as retrouvé la plupart des indices cachés dans les coulisses de Conflans.";}
-  else if(score>=Math.ceil(max*.4)){title="Une piste prometteuse…";message="Quelques mystères résistent encore. Tu peux rejouer pour compléter ton carnet.";}
-  $("resultTitle").textContent=title;$("resultText").textContent=message;$("scoreMessage").textContent=`${score} bonne${score>1?"s":""} réponse${score>1?"s":""} sur ${max}`;
+
+// =========================================================
+// ÉCRAN DES RÉSULTATS
+// =========================================================
+
+function showResult() {
+  showScreen("result");
+
+  $("progressBar").style.width = "100%";
+
+  const max = questions.length + 1;
+
+  $("finalScore").textContent = `${score}/${max}`;
+
+  let title = "Le mystère reste entier…";
+  let message = "Les archives ont encore quelques secrets.";
+
+  if (score === max) {
+    title = "Une enquête sans faute !";
+    message =
+      "Tous les indices ont été déchiffrés. La mairie n’a plus de secrets pour toi.";
+  } else if (score >= Math.ceil(max * 0.7)) {
+    title = "Bien joué, enquêteur·rice !";
+    message =
+      "Tu as retrouvé la plupart des indices cachés dans les coulisses de Conflans.";
+  } else if (score >= Math.ceil(max * 0.4)) {
+    title = "Une piste prometteuse…";
+    message =
+      "Quelques mystères résistent encore. Tu peux rejouer pour compléter ton carnet.";
+  }
+
+  $("resultTitle").textContent = title;
+  $("resultText").textContent = message;
+
+  $("scoreMessage").textContent =
+    `${score} bonne${score > 1 ? "s" : ""} réponse${score > 1 ? "s" : ""} sur ${max}`;
 }
-function showReview(){
-  $("reviewList").innerHTML="";
-  answersLog.forEach((a,i)=>{
-    const item=document.createElement("article");item.className="review-item";
-    const h=document.createElement("h3");h.textContent=`${String(i+1).padStart(2,"0")} — ${a.question}`;
-    const p1=document.createElement("p");p1.textContent=`Ta réponse : ${a.chosen}`;
-    const p2=document.createElement("p");p2.innerHTML="Réponse attendue : ";const strong=document.createElement("strong");strong.textContent=a.correct;p2.appendChild(strong);
-    const p3=document.createElement("p");p3.textContent=a.explanation;
-    item.append(h,p1,p2,p3);$("reviewList").appendChild(item);
+
+// =========================================================
+// CORRECTION DES RÉPONSES
+// =========================================================
+
+function showReview() {
+  $("reviewList").innerHTML = "";
+
+  answersLog.forEach((a, i) => {
+    const item = document.createElement("article");
+    item.className = "review-item";
+
+    const h = document.createElement("h3");
+    h.textContent =
+      `${String(i + 1).padStart(2, "0")} — ${a.question}`;
+
+    const p1 = document.createElement("p");
+    p1.textContent = `Ta réponse : ${a.chosen}`;
+
+    const p2 = document.createElement("p");
+    p2.textContent = "Réponse attendue : ";
+
+    const strong = document.createElement("strong");
+    strong.textContent = a.correct;
+
+    p2.appendChild(strong);
+
+    const p3 = document.createElement("p");
+    p3.textContent = a.explanation;
+
+    item.append(h, p1, p2, p3);
+
+    $("reviewList").appendChild(item);
   });
+
   showScreen("review");
 }
-$("startBtn").addEventListener("click",begin);
-$("skipVideoBtn").addEventListener("click",leaveVideoIntro);
-$("openingVideo").addEventListener("ended",leaveVideoIntro);
-// Le clip s'affiche en premier. Si l'autoplay est bloqué, les contrôles permettent de le lancer.
-window.addEventListener("load",startOpeningVideo);
-$("nextBtn").addEventListener("click",nextQuestion);
-$("replayBtn").addEventListener("click",begin);
-$("reviewBtn").addEventListener("click",showReview);
-$("backResultBtn").addEventListener("click",()=>showScreen("result"));
-/* =========================================================
-   MUSIQUE D'AMBIANCE (lecteur YouTube invisible)
-   Utilise l'API officielle YouTube IFrame Player — le player
-   reste caché (1x1px hors-écran), seul le son est audible.
-========================================================= */
+
+// =========================================================
+// INTÉGRATION MUSICALE YOUTUBE
+// =========================================================
+
+// Identifiant de la vidéo musicale d'origine.
+// Remplace-le si tu souhaites utiliser une autre vidéo.
 const MISSION_MUSIC_VIDEO_ID = "piJG3oOXKVo";
+
 let missionYouTubePlayer = null;
 let missionYouTubeApiLoading = false;
-let missionMusicActive = false; // suit l'intention : la musique doit-elle jouer ?
+let missionYouTubePlayerReady = false;
+let missionMusicActive = false;
+let missionYouTubeCallbacks = [];
 
-function loadMissionYouTubeApi(callback){
-  if(window.YT && window.YT.Player){
+function loadMissionYouTubeApi(callback) {
+  if (window.YT && window.YT.Player) {
     callback();
     return;
   }
-  const previousCallback = window.onYouTubeIframeAPIReady;
-  window.onYouTubeIframeAPIReady = function(){
-    if(typeof previousCallback === "function") previousCallback();
-    callback();
-  };
-  if(missionYouTubeApiLoading) return;
+
+  missionYouTubeCallbacks.push(callback);
+
+  if (missionYouTubeApiLoading) return;
+
   missionYouTubeApiLoading = true;
+
+  const previousCallback = window.onYouTubeIframeAPIReady;
+
+  window.onYouTubeIframeAPIReady = function () {
+    if (typeof previousCallback === "function") {
+      previousCallback();
+    }
+
+    const callbacks = missionYouTubeCallbacks.slice();
+    missionYouTubeCallbacks = [];
+
+    callbacks.forEach(fn => fn());
+  };
+
   const tag = document.createElement("script");
   tag.src = "https://www.youtube.com/iframe_api";
+  tag.async = true;
+
   document.head.appendChild(tag);
 }
 
-function ensureMissionMusicContainer(){
+// Crée un lecteur suffisamment grand pour être compatible
+// avec les exigences habituelles de l'API YouTube.
+function ensureMissionMusicContainer() {
   let holder = document.getElementById("missionMusicPlayer");
-  if(holder) return holder;
+
+  if (holder) return holder;
+
   holder = document.createElement("div");
   holder.id = "missionMusicPlayer";
-  holder.style.cssText = "position:fixed;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;left:-9999px;top:-9999px;";
+
+  holder.style.cssText = [
+    "position:fixed",
+    "width:200px",
+    "height:200px",
+    "right:15px",
+    "bottom:15px",
+    "z-index:9999",
+    "background:#000",
+    "border-radius:8px",
+    "overflow:hidden",
+    "box-shadow:0 2px 12px rgba(0,0,0,0.25)"
+  ].join(";");
+
   document.body.appendChild(holder);
+
   return holder;
 }
 
-function startMissionMusic(){
-  missionMusicActive = true;
+// Prépare le lecteur sans lancer la musique automatiquement.
+function prepareMissionMusic() {
   ensureMissionMusicContainer();
+
   loadMissionYouTubeApi(() => {
-    if(missionYouTubePlayer){
-      try{
-        missionYouTubePlayer.seekTo(0);
-        missionYouTubePlayer.playVideo();
-      }catch(e){}
-      return;
-    }
+    if (missionYouTubePlayer) return;
+
     missionYouTubePlayer = new YT.Player("missionMusicPlayer", {
-      height: "1",
-      width: "1",
+      width: "200",
+      height: "200",
+
       videoId: MISSION_MUSIC_VIDEO_ID,
+
       playerVars: {
-        autoplay: 1,
+        autoplay: 0,
+        controls: 1,
+        playsinline: 1,
         loop: 1,
         playlist: MISSION_MUSIC_VIDEO_ID,
-        controls: 0,
-        disablekb: 1,
-        modestbranding: 1
+        rel: 0
       },
+
       events: {
-        onReady: (event) => {
+        onReady: function (event) {
+          missionYouTubePlayerReady = true;
+
           event.target.setVolume(50);
-          event.target.playVideo();
+
+          // Si le joueur a déjà demandé la musique,
+          // on essaie de la démarrer dès que le lecteur est prêt.
+          if (missionMusicActive) {
+            event.target.playVideo();
+          }
+        },
+
+        onError: function (event) {
+          console.error(
+            "Erreur du lecteur musical YouTube :",
+            event.data
+          );
         }
       }
     });
   });
 }
 
-function stopMissionMusic(){
+// Appelée au clic sur le bouton de démarrage du quiz.
+function startMissionMusic() {
+  missionMusicActive = true;
+
+  if (
+    missionYouTubePlayer &&
+    missionYouTubePlayerReady
+  ) {
+    try {
+      missionYouTubePlayer.setVolume(50);
+      missionYouTubePlayer.playVideo();
+    } catch (error) {
+      console.warn("Impossible de démarrer la musique :", error);
+    }
+
+    return;
+  }
+
+  // Le lecteur se prépare si l'API n'est pas encore prête.
+  prepareMissionMusic();
+}
+
+function stopMissionMusic() {
   missionMusicActive = false;
-  if(missionYouTubePlayer && typeof missionYouTubePlayer.stopVideo === "function"){
-    try{ missionYouTubePlayer.stopVideo(); }catch(e){}
+
+  if (
+    missionYouTubePlayer &&
+    missionYouTubePlayerReady
+  ) {
+    try {
+      missionYouTubePlayer.pauseVideo();
+    } catch (error) {
+      console.warn("Impossible de mettre la musique en pause :", error);
+    }
   }
 }
 
-// Certains navigateurs (surtout mobile) suspendent la lecture audio/vidéo
-// d'un onglet passé en arrière-plan (par ex. quand un lien s'ouvre dans un
-// nouvel onglet). On relance la musique dès que l'onglet redevient actif,
-// si elle était censée jouer.
-function resumeMissionMusicIfNeeded(){
-  if(!missionMusicActive || !missionYouTubePlayer) return;
-  try{
-    if(typeof missionYouTubePlayer.getPlayerState === "function"){
-      const PLAYING = 1;
-      if(missionYouTubePlayer.getPlayerState() === PLAYING) return;
+// Reprend la lecture lorsque la page redevient visible.
+function resumeMissionMusicIfNeeded() {
+  if (
+    !missionMusicActive ||
+    !missionYouTubePlayer ||
+    !missionYouTubePlayerReady
+  ) {
+    return;
+  }
+
+  try {
+    const PLAYING = 1;
+
+    if (missionYouTubePlayer.getPlayerState() !== PLAYING) {
+      missionYouTubePlayer.playVideo();
     }
-    missionYouTubePlayer.playVideo();
-  }catch(e){}
+  } catch (error) {
+    console.warn("Reprise de la musique impossible :", error);
+  }
 }
 
+// =========================================================
+// INITIALISATION DES BOUTONS ET ÉVÉNEMENTS
+// =========================================================
+
+$("startBtn").addEventListener("click", begin);
+
+$("skipVideoBtn").addEventListener("click", leaveVideoIntro);
+
+$("openingVideo").addEventListener("ended", leaveVideoIntro);
+
+window.addEventListener("load", function () {
+  startOpeningVideo();
+
+  // On prépare le lecteur avant que le joueur démarre le quiz.
+  prepareMissionMusic();
+});
+
+$("nextBtn").addEventListener("click", nextQuestion);
+
+$("replayBtn").addEventListener("click", begin);
+
+$("reviewBtn").addEventListener("click", showReview);
+
+$("backResultBtn").addEventListener("click", () => {
+  showScreen("result");
+});
+
 document.addEventListener("visibilitychange", () => {
-  if(document.hidden) return;
-  resumeMissionMusicIfNeeded();
-  if(missionMusicActive) scrollMissionIntoView();
+  if (!document.hidden) {
+    resumeMissionMusicIfNeeded();
+  }
 });
 
 window.addEventListener("focus", () => {
   resumeMissionMusicIfNeeded();
-  if(missionMusicActive) scrollMissionIntoView();
 });
