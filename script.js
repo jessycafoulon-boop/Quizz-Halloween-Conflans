@@ -161,3 +161,105 @@ $("nextBtn").addEventListener("click",nextQuestion);
 $("replayBtn").addEventListener("click",begin);
 $("reviewBtn").addEventListener("click",showReview);
 $("backResultBtn").addEventListener("click",()=>showScreen("result"));
+/* =========================================================
+   MUSIQUE D'AMBIANCE (lecteur YouTube invisible)
+   Utilise l'API officielle YouTube IFrame Player — le player
+   reste caché (1x1px hors-écran), seul le son est audible.
+========================================================= */
+const MISSION_MUSIC_VIDEO_ID = "piJG3oOXKVo";
+let missionYouTubePlayer = null;
+let missionYouTubeApiLoading = false;
+let missionMusicActive = false; // suit l'intention : la musique doit-elle jouer ?
+
+function loadMissionYouTubeApi(callback){
+  if(window.YT && window.YT.Player){
+    callback();
+    return;
+  }
+  const previousCallback = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = function(){
+    if(typeof previousCallback === "function") previousCallback();
+    callback();
+  };
+  if(missionYouTubeApiLoading) return;
+  missionYouTubeApiLoading = true;
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+}
+
+function ensureMissionMusicContainer(){
+  let holder = document.getElementById("missionMusicPlayer");
+  if(holder) return holder;
+  holder = document.createElement("div");
+  holder.id = "missionMusicPlayer";
+  holder.style.cssText = "position:fixed;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;left:-9999px;top:-9999px;";
+  document.body.appendChild(holder);
+  return holder;
+}
+
+function startMissionMusic(){
+  missionMusicActive = true;
+  ensureMissionMusicContainer();
+  loadMissionYouTubeApi(() => {
+    if(missionYouTubePlayer){
+      try{
+        missionYouTubePlayer.seekTo(0);
+        missionYouTubePlayer.playVideo();
+      }catch(e){}
+      return;
+    }
+    missionYouTubePlayer = new YT.Player("missionMusicPlayer", {
+      height: "1",
+      width: "1",
+      videoId: MISSION_MUSIC_VIDEO_ID,
+      playerVars: {
+        autoplay: 1,
+        loop: 1,
+        playlist: MISSION_MUSIC_VIDEO_ID,
+        controls: 0,
+        disablekb: 1,
+        modestbranding: 1
+      },
+      events: {
+        onReady: (event) => {
+          event.target.setVolume(50);
+          event.target.playVideo();
+        }
+      }
+    });
+  });
+}
+
+function stopMissionMusic(){
+  missionMusicActive = false;
+  if(missionYouTubePlayer && typeof missionYouTubePlayer.stopVideo === "function"){
+    try{ missionYouTubePlayer.stopVideo(); }catch(e){}
+  }
+}
+
+// Certains navigateurs (surtout mobile) suspendent la lecture audio/vidéo
+// d'un onglet passé en arrière-plan (par ex. quand un lien s'ouvre dans un
+// nouvel onglet). On relance la musique dès que l'onglet redevient actif,
+// si elle était censée jouer.
+function resumeMissionMusicIfNeeded(){
+  if(!missionMusicActive || !missionYouTubePlayer) return;
+  try{
+    if(typeof missionYouTubePlayer.getPlayerState === "function"){
+      const PLAYING = 1;
+      if(missionYouTubePlayer.getPlayerState() === PLAYING) return;
+    }
+    missionYouTubePlayer.playVideo();
+  }catch(e){}
+}
+
+document.addEventListener("visibilitychange", () => {
+  if(document.hidden) return;
+  resumeMissionMusicIfNeeded();
+  if(missionMusicActive) scrollMissionIntoView();
+});
+
+window.addEventListener("focus", () => {
+  resumeMissionMusicIfNeeded();
+  if(missionMusicActive) scrollMissionIntoView();
+});
