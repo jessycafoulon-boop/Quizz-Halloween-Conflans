@@ -1,4 +1,3 @@
-```html
 <!doctype html>
 <html lang="fr">
 <head>
@@ -258,4 +257,29 @@
       musicPlayer.playVideo();
     }
 
-    // L
+    // L'API YouTube doit être chargée pour définir
+    // onYouTubeIframeAPIReady.
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+  </script>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <!-- SCRIPT EXISTANT DU QUIZ -->
+  <script src="script.js"></script>
+
+  <!-- LANCEMENT AU CLIC SUR LE BOUTON D'ACCUEIL -->
+  <script>
+    document.getElementById("startBtn").addEventListener("click", function() {
+      startMusic();
+    });
+
+    // Permet aussi de démarrer la musique si le visiteur
+    // passe directement l'introduction vidéo.
+    document.getElementById("skipVideoBtn").addEventListener("click", function() {
+      startMusic();
+    });
+  </script>
+
+</body>
+</html>
+```
